@@ -1,123 +1,100 @@
-import React from 'react';
-import { Users, TrendingDown, Truck, BarChart3 } from 'lucide-react';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
+import { BarChart3 } from 'lucide-react';
+import { Legend, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer } from 'recharts';
+import type { Company } from '../types';
+import { companyToFeatures, groupHealth } from '../ml/features';
+import { companySentiment } from '../analysis/sentiment';
+import type { CompanyRisk } from '../ml/useRiskModel';
 
-interface CompetitorData {
-  name: string;
-  marketShare: number;
-  riskScore: number;
-  metrics: {
-    financial: number;
-    workforce: number;
-    supplyChain: number;
-    innovation: number;
-    marketPresence: number;
+const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444'];
+
+/** 0-100 scores for the radar, higher is healthier on every axis. */
+function profile(company: Company, risk?: CompanyRisk) {
+  const health = groupHealth(companyToFeatures(company));
+  const sentiment = companySentiment(company).average;
+  return {
+    Finance: health.financial,
+    Staff: health.workforce,
+    Supply: health.supplyChain,
+    News: Math.round(Math.min(100, Math.max(0, 50 + sentiment * 8))),
+    Survival: risk ? Math.round(100 * (1 - risk.probability)) : 0,
   };
 }
 
-const competitors: CompetitorData[] = [
-  {
-    name: "TechVision Corp",
-    marketShare: 25,
-    riskScore: 75,
-    metrics: {
-      financial: 65,
-      workforce: 80,
-      supplyChain: 70,
-      innovation: 85,
-      marketPresence: 75
-    }
-  },
-  {
-    name: "EcoEnergy Solutions",
-    marketShare: 18,
-    riskScore: 45,
-    metrics: {
-      financial: 75,
-      workforce: 65,
-      supplyChain: 80,
-      innovation: 70,
-      marketPresence: 60
-    }
-  }
-];
+interface Props {
+  companies: Company[];
+  selected: Company | null;
+  risks: Record<string, CompanyRisk>;
+}
 
-export function CompetitorAnalysis() {
-  const getRadarData = (competitor: CompetitorData) => {
-    return Object.entries(competitor.metrics).map(([key, value]) => ({
-      subject: key.charAt(0).toUpperCase() + key.slice(1),
-      value: value
-    }));
-  };
+export function CompetitorAnalysis({ companies, selected, risks }: Props) {
+  if (!selected) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center mb-2">
+          <BarChart3 className="h-6 w-6 text-indigo-500 mr-2" />
+          <h2 className="text-lg font-semibold">Competitor Analysis</h2>
+        </div>
+        <p className="text-sm text-gray-500">Select a company to compare it with others in its industry.</p>
+      </div>
+    );
+  }
+
+  const peers = [selected, ...companies.filter(c => c.industry === selected.industry && c.id !== selected.id)];
+  const profiles = peers.map(c => profile(c, risks[c.id]));
+  const axes = Object.keys(profiles[0]) as (keyof ReturnType<typeof profile>)[];
+  const data = axes.map(axis => {
+    const row: Record<string, string | number> = { subject: axis };
+    peers.forEach((c, i) => (row[c.ticker] = profiles[i][axis]));
+    return row;
+  });
+  const industryCap = peers.reduce((sum, c) => sum + c.marketCap, 0);
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <div className="flex items-center mb-6">
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="flex items-center mb-4">
         <BarChart3 className="h-6 w-6 text-indigo-500 mr-2" />
-        <h2 className="text-lg font-semibold">Competitor Analysis</h2>
+        <h2 className="text-lg font-semibold">Competitor Analysis: {selected.industry}</h2>
       </div>
 
-      <div className="space-y-6">
-        {competitors.map((competitor, index) => (
-          <div key={index} className="border rounded-lg p-4">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-md font-semibold">{competitor.name}</h3>
-                <p className="text-sm text-gray-500">
-                  Market Share: {competitor.marketShare}%
-                </p>
-              </div>
-              <div className={`px-3 py-1 rounded-full ${
-                competitor.riskScore >= 70 ? 'bg-red-100 text-red-800' :
-                competitor.riskScore >= 40 ? 'bg-yellow-100 text-yellow-800' :
-                'bg-green-100 text-green-800'
-              }`}>
-                Risk Score: {competitor.riskScore}
-              </div>
-            </div>
-
-            <div className="h-48 mb-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={getRadarData(competitor)}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="subject" />
-                  <Radar
-                    name={competitor.name}
-                    dataKey="value"
-                    stroke="#6366f1"
-                    fill="#6366f1"
-                    fillOpacity={0.2}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <TrendingDown className="h-5 w-5 mx-auto text-blue-500 mb-1" />
-                <div className="text-sm font-medium">
-                  {competitor.metrics.financial}%
-                </div>
-                <div className="text-xs text-gray-500">Financial</div>
-              </div>
-              <div className="text-center">
-                <Users className="h-5 w-5 mx-auto text-purple-500 mb-1" />
-                <div className="text-sm font-medium">
-                  {competitor.metrics.workforce}%
-                </div>
-                <div className="text-xs text-gray-500">Workforce</div>
-              </div>
-              <div className="text-center">
-                <Truck className="h-5 w-5 mx-auto text-green-500 mb-1" />
-                <div className="text-sm font-medium">
-                  {competitor.metrics.supplyChain}%
-                </div>
-                <div className="text-xs text-gray-500">Supply Chain</div>
-              </div>
-            </div>
+      {peers.length === 1 ? (
+        <p className="text-sm text-gray-500">No other {selected.industry} companies are tracked yet.</p>
+      ) : (
+        <>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={data} outerRadius="70%">
+                <PolarGrid />
+                <PolarAngleAxis dataKey="subject" fontSize={11} />
+                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                {peers.map((c, i) => (
+                  <Radar key={c.id} name={c.ticker} dataKey={c.ticker} stroke={COLORS[i % COLORS.length]}
+                    fill={COLORS[i % COLORS.length]} fillOpacity={i === 0 ? 0.3 : 0.1} />
+                ))}
+                <Legend />
+              </RadarChart>
+            </ResponsiveContainer>
           </div>
-        ))}
-      </div>
+          <table className="w-full text-sm mt-2">
+            <thead>
+              <tr className="text-xs text-gray-500 text-left">
+                <th className="font-medium py-1">Company</th>
+                <th className="font-medium">Share of peer cap</th>
+                <th className="font-medium text-right">Exit risk</th>
+              </tr>
+            </thead>
+            <tbody>
+              {peers.map(c => (
+                <tr key={c.id} className={c.id === selected.id ? 'font-semibold' : ''}>
+                  <td className="py-1">{c.name}</td>
+                  <td>{((c.marketCap / industryCap) * 100).toFixed(0)}%</td>
+                  <td className="text-right">{risks[c.id] ? `${(risks[c.id].probability * 100).toFixed(0)}%` : '…'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-gray-400 mt-3">All axes 0-100, higher is healthier. Survival = 100 − model exit risk.</p>
+        </>
+      )}
     </div>
   );
 }
