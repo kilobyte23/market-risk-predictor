@@ -3,45 +3,28 @@ export interface Company {
   name: string;
   ticker: string;
   industry: string;
-  riskScore: number;
-  financialHealth: number;
-  layoffScore: number;
-  supplyChainRisk: number;
   lastUpdated: string;
   marketCap: number;
   employees: number;
   headquarters: string;
-  aiPredictions: AIPredictions;
-  historicalData: HistoricalData[];
+  /** Daily closing prices, oldest first. */
+  priceHistory: PricePoint[];
   financialMetrics: FinancialMetrics;
   workforceMetrics: WorkforceMetrics;
   supplyChainMetrics: SupplyChainMetrics;
+  news: NewsItem[];
 }
 
-export interface AIPredictions {
-  exitProbability: number;
-  confidenceScore: number;
-  timeframe: string;
-  factors: PredictionFactor[];
-}
-
-export interface PredictionFactor {
-  name: string;
-  impact: number;
-  description: string;
-}
-
-export interface HistoricalData {
+export interface PricePoint {
   date: string;
-  riskScore: number;
-  stockPrice: number;
-  volume: number;
+  price: number;
 }
 
 export interface FinancialMetrics {
   debtRatio: number;
   currentRatio: number;
   quickRatio: number;
+  /** Operating cash flow over the last quarter, in USD. */
   cashFlow: number;
   profitMargin: number;
   revenueGrowth: number;
@@ -81,11 +64,21 @@ export interface Supplier {
   dependency: number;
 }
 
+export interface NewsItem {
+  title: string;
+  content: string;
+  date: string;
+  source: string;
+}
+
+export type AlertType = 'financial' | 'workforce' | 'supply_chain' | 'market';
+export type Severity = 'low' | 'medium' | 'high' | 'critical';
+
 export interface RiskAlert {
   id: string;
   companyId: string;
-  type: 'financial' | 'workforce' | 'supply_chain' | 'market';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: AlertType;
+  severity: Severity;
   message: string;
   date: string;
   details: string;
