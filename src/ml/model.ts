@@ -1,5 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
-import { Dataset, generateDataset, splitDataset } from './dataset';
+import { Dataset, generateDataset, splitDataset, trueExitProbability } from './dataset';
 import { FEATURES, NUM_FEATURES } from './features';
 
 export interface EpochUpdate {
@@ -16,6 +16,12 @@ export interface EvaluationMetrics {
   /** Accuracy of always predicting "no exit". The model has to beat this. */
   baselineAccuracy: number;
   auc: number;
+  /** AUC of an unweighted average of the risk features: what you'd get without learning. */
+  heuristicAuc: number;
+  /** AUC of the hidden rule that generated the labels: the best any model could do. */
+  oracleAuc: number;
+  /** Mean squared error of the probabilities (lower is better; checks calibration, not just ranking). */
+  brier: number;
   positiveRate: number;
   testSize: number;
 }
@@ -141,6 +147,9 @@ export class MarketExitModel {
       accuracy: correct / data.labels.length,
       baselineAccuracy: Math.max(positiveRate, 1 - positiveRate),
       auc: rocAuc(scores, data.labels),
+      heuristicAuc: rocAuc(data.features.map(x => x.reduce((a, b) => a + b, 0) / x.length), data.labels),
+      oracleAuc: rocAuc(data.features.map(trueExitProbability), data.labels),
+      brier: scores.reduce((sum, s, i) => sum + (s - data.labels[i]) ** 2, 0) / scores.length,
       positiveRate,
       testSize: data.labels.length,
     };

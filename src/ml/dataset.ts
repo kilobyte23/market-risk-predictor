@@ -21,10 +21,12 @@ export function createRng(seed: number): () => number {
 // the risk-oriented [0, 1] features, in FEATURES order. Cash and growth problems
 // and layoffs matter most; supply chain matters least. The model never sees
 // these numbers, it has to learn them from the labelled samples.
-export const TRUE_WEIGHTS = [1.4, 1.1, 2.2, 1.8, 1.2, 2.4, 0.9, 0.9, 0.7, 0.9];
-const TRUE_BIAS = -9.6; // gives roughly a 20% exit rate
+export const TRUE_WEIGHTS = [0.2, 0.5, 3.5, 2.8, 0.2, 3.8, 0.1, 1.6, 0.1, 0.2];
+const TRUE_BIAS = -8.8; // gives roughly a 20% exit rate
 // Distressed companies tend to have several problems at once.
 const DISTRESS_INTERACTION = 2.0;
+// How strongly one latent "distress" level moves every metric together.
+const DISTRESS_COUPLING = 0.15;
 
 const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
 
@@ -52,7 +54,7 @@ export function generateDataset(numSamples: number, seed = 42): Dataset {
     const x = FEATURES.map(f => {
       if (f.key === 'hiringFreeze') return rand() < 0.1 + 0.5 * distress ? 1 : 0;
       const noise = (rand() + rand()) / 2;
-      return Math.min(1, Math.max(0, 0.5 * distress + 0.6 * noise - 0.05));
+      return Math.min(1, Math.max(0, DISTRESS_COUPLING * distress + (1 - DISTRESS_COUPLING) * noise));
     });
     features.push(x);
     labels.push(rand() < trueExitProbability(x) ? 1 : 0);

@@ -17,7 +17,7 @@ describe('synthetic dataset', () => {
     const rate = data.labels.reduce((a, b) => a + b, 0) / data.labels.length;
     expect(rate).toBeGreaterThan(0.12);
     expect(rate).toBeLessThan(0.3);
-    expect(rocAuc(data.features.map(trueExitProbability), data.labels)).toBeGreaterThan(0.85);
+    expect(rocAuc(data.features.map(trueExitProbability), data.labels)).toBeGreaterThan(0.82);
   });
 });
 
@@ -26,8 +26,12 @@ describe('MarketExitModel', () => {
     const model = new MarketExitModel();
     const metrics = await model.train({ samples: 3000, epochs: 25 });
 
-    expect(metrics.auc).toBeGreaterThan(0.8);
+    expect(metrics.auc).toBeGreaterThan(0.78);
     expect(metrics.accuracy).toBeGreaterThanOrEqual(metrics.baselineAccuracy);
+    // Learning beats the naive average and gets close to the ceiling.
+    expect(metrics.auc).toBeGreaterThan(metrics.heuristicAuc);
+    expect(metrics.oracleAuc - metrics.auc).toBeLessThan(0.03);
+    expect(metrics.brier).toBeLessThan(0.15);
 
     const byTicker = Object.fromEntries(
       mockCompanies.map(c => [c.ticker, model.predict(companyToFeatures(c))]),
