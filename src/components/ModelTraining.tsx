@@ -59,11 +59,12 @@ export function ModelTraining({ model }: { model: RiskModelState }) {
       )}
 
       <div className="grid grid-cols-3 gap-4">
-        <Stat label="Test ROC AUC" value={metrics ? metrics.auc.toFixed(3) : '—'} hint="0.5 = guessing, 1 = perfect" />
+        <Stat label="Test ROC AUC" value={metrics ? metrics.auc.toFixed(3) : '—'}
+          hint={metrics ? `heuristic ${metrics.heuristicAuc.toFixed(2)} · ceiling ${metrics.oracleAuc.toFixed(2)}` : '0.5 = guessing, 1 = perfect'} />
         <Stat label="Test accuracy" value={metrics ? pct(metrics.accuracy) : '—'}
           hint={metrics ? `baseline ${pct(metrics.baselineAccuracy)}` : 'vs. always "no exit"'} />
-        <Stat label="Exit rate in data" value={metrics ? pct(metrics.positiveRate) : '—'}
-          hint={metrics ? `${metrics.testSize} held-out samples` : 'held-out set'} />
+        <Stat label="Brier score" value={metrics ? metrics.brier.toFixed(3) : '—'}
+          hint={metrics ? `${metrics.testSize} held-out · ${pct(metrics.positiveRate)} exit` : 'lower is better'} />
       </div>
 
       {status === 'training' && (
